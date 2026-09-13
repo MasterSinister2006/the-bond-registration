@@ -1,0 +1,6 @@
+.env
+backend/.env
+credentials/
+credentails/
+*.json
+!frontend/tsconfig*.json

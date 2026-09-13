@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/outfit";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-heading: 'Outfit Variable', sans-serif;
+  --font-sans: 'Geist Variable', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+  --color-background: #0a0d14;
+  --color-foreground: #f8fafc;
+  --color-card: #161c2e;
+  --color-card-foreground: #f8fafc;
+  --color-popover: #161c2e;
+  --color-popover-foreground: #f8fafc;
+  --color-primary: #00f0ff;
+  --color-primary-foreground: #071017;
+  --color-secondary: #111625;
+  --color-secondary-foreground: #f8fafc;
+  --color-muted: #111625;
+  --color-muted-foreground: #94a3b8;
+  --color-accent: #00f0ff;
+  --color-accent-foreground: #071017;
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-input: rgba(255, 255, 255, 0.14);
+  --color-ring: #00f0ff;
+  --color-destructive: #fb7185;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+}
+
+:root { --radius: 0.75rem; }
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  html { @apply font-sans scroll-smooth; background: #0a0d14; }
+  body { @apply bg-background text-foreground; margin: 0; }
+  ::selection { background: rgba(0, 240, 255, 0.3); color: white; }
+}
+
+@media print {
+  body { background: white; color: black; }
+  header, footer, section:not(#rsvp), #rsvp > div:first-child, #rsvp form, #rsvp .border-t { display: none !important; }
+  #rsvp { display: block; padding: 0; }
+  #rsvp > div:last-child { max-width: 100%; }
+  [data-testid="hex-pass-display"] { color: black; background: white; border: 2px solid black; box-shadow: none; }
+}
