@@ -1,36 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
-import {
-  ArrowRight,
-  CalendarDays,
-  Check,
-  CheckCircle2,
-  Clock3,
-  ExternalLink,
-  Instagram,
-  MapPin,
-  MessageCircle,
-  ShieldCheck,
-  Sparkles,
-  Ticket,
-  UploadCloud,
-} from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { apiGet, apiPost, apiPostForm, errorMessage } from "@/lib/api";
+import { ConfettiField, Sparkle, ToteIllustration } from "@/components/Artwork";
 import type { EventConfig, ProofSubmitted, Registration, RegistrationCreated } from "@/lib/types";
 import type { FormEvent, ReactNode } from "react";
 
+/* Rendered only if /event is unreachable, so the page never shows an empty shell.
+   Keep in step with backend/routers/event.py. */
 const FALLBACK_EVENT: EventConfig = {
   name: "THE BOND",
   eyebrow: "Tote Bag Bedazzling Party",
   description:
-    "A creative evening to design, decorate and bedazzle your own tote bag — with good vibes, new connections and a little sparkle.",
+    "An evening of design, decoration and a little sparkle — with good company, new faces and a tote bag that leaves looking like yours.",
   date_label: "Thursday, 17 September 2026",
   time_label: "5:30 PM — 7:30 PM",
   venue: "Sayaji Bagh, Vadodara",
@@ -39,7 +23,7 @@ const FALLBACK_EVENT: EventConfig = {
   currency: "INR",
   payment_upi_id: "shah.parshva2007@oksbi",
   payment_name: "Parshva Shah",
-  payment_qr_url: "/payment-qr.jpg",
+  payment_qr_url: "",
   included: [
     "Your own tote bag to customise",
     "Complimentary refreshing drink",
@@ -72,12 +56,76 @@ const INITIAL_FORM: FormValues = {
   discovery_other: "",
 };
 
-function Countdown({ target }: { target: string }) {
+/* ── Small building blocks ─────────────────────────────────────── */
+
+/** Reveals a block once as it scrolls in. Movement is dropped under reduced-motion. */
+function Reveal({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const reduced = useReducedMotion();
+  return (
+    <motion.div
+      className={className}
+      initial={reduced ? { opacity: 0 } : { opacity: 0, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** One row of the event spec list: a ruled label/value pair. */
+function Particular({ label, value, testId }: { label: string; value: string; testId?: string }) {
+  return (
+    <div data-testid={testId} className="flex items-baseline justify-between gap-6 border-t border-[var(--rule)] py-3.5">
+      <span className="eyebrow shrink-0">{label}</span>
+      <span className="text-right text-[0.95rem] leading-snug text-[var(--ink)]">{value}</span>
+    </div>
+  );
+}
+
+/** Form field: label above a ruled input. */
+function Field({
+  label,
+  id,
+  children,
+  hint,
+  required = true,
+}: {
+  label: string;
+  id: string;
+  children: ReactNode;
+  hint?: string;
+  required?: boolean;
+}) {
+  return (
+    <div data-testid={`${id}-field`} className="min-w-0">
+      <label htmlFor={id} data-testid={`${id}-label`} className="eyebrow mb-2 block">
+        {label}
+        {required && <span aria-hidden="true" className="ml-1 text-[var(--clay)]">*</span>}
+      </label>
+      {children}
+      {hint && <p className="mt-1.5 text-[0.75rem] leading-relaxed text-[var(--ink-soft)]">{hint}</p>}
+    </div>
+  );
+}
+
+/** Countdown rendered as one quiet sentence rather than a row of digit boxes. */
+function CountdownLine({ target }: { target: string }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
   const parts = useMemo(() => {
     const seconds = Math.max(0, Math.floor((new Date(target).getTime() - now) / 1000));
     return {
@@ -85,49 +133,95 @@ function Countdown({ target }: { target: string }) {
       hours: Math.floor((seconds % 86400) / 3600),
       minutes: Math.floor((seconds % 3600) / 60),
       seconds: seconds % 60,
+      total: seconds,
     };
   }, [now, target]);
 
+  if (parts.total === 0) {
+    return (
+      <p data-testid="event-hero-countdown" className="eyebrow">
+        The evening has begun
+      </p>
+    );
+  }
+
   return (
-    <div data-testid="event-hero-countdown" className="grid grid-cols-4 gap-2 sm:gap-3">
-      {Object.entries(parts).map(([label, value]) => (
-        <div key={label} data-testid={`countdown-${label}`} className="rounded-xl border border-white/10 bg-white/[0.06] p-3 text-center backdrop-blur-sm">
-          <div className="font-mono text-xl font-bold text-cyan-300 sm:text-2xl">{String(value).padStart(2, "0")}</div>
-          <div className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] text-slate-500">{label}</div>
-        </div>
-      ))}
-    </div>
+    <p data-testid="event-hero-countdown" className="eyebrow flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <span>Doors open in</span>
+      <span data-testid="countdown-days" className="font-heading text-[1.05rem] tracking-normal text-[var(--clay-deep)] normal-case">
+        {parts.days}d
+      </span>
+      <span data-testid="countdown-hours" className="font-heading text-[1.05rem] tracking-normal text-[var(--clay-deep)] normal-case">
+        {String(parts.hours).padStart(2, "0")}h
+      </span>
+      <span data-testid="countdown-minutes" className="font-heading text-[1.05rem] tracking-normal text-[var(--clay-deep)] normal-case">
+        {String(parts.minutes).padStart(2, "0")}m
+      </span>
+      <span data-testid="countdown-seconds" className="font-heading text-[1.05rem] tracking-normal text-[var(--clay-deep)] normal-case tabular-nums">
+        {String(parts.seconds).padStart(2, "0")}s
+      </span>
+    </p>
   );
 }
 
-function Field({ label, id, children, required = true }: { label: string; id: string; children: ReactNode; required?: boolean }) {
+/** Three-step progress as a ruled line — no pills, no badges. */
+function StepRule({ current }: { current: 1 | 2 | 3 }) {
+  const steps = ["Your details", "Payment", "Confirmation"];
   return (
-    <div data-testid={`${id}-field`} className="space-y-2">
-      <label htmlFor={id} data-testid={`${id}-label`} className="text-sm font-medium text-slate-200">
-        {label} {required && <span className="text-cyan-300">*</span>}
-      </label>
-      {children}
-    </div>
+    <ol data-testid="step-rule" className="grid grid-cols-3 gap-px">
+      {steps.map((label, index) => {
+        const position = (index + 1) as 1 | 2 | 3;
+        const done = position < current;
+        const active = position === current;
+        return (
+          <li key={label} className="min-w-0">
+            <div
+              aria-hidden="true"
+              className={`h-px w-full transition-colors duration-500 ${
+                active || done ? "bg-[var(--clay)]" : "bg-[var(--rule)]"
+              }`}
+            />
+            <p
+              className={`mt-2 truncate text-[0.6875rem] uppercase tracking-[0.14em] ${
+                active ? "text-[var(--clay-deep)]" : "text-[var(--ink-soft)]"
+              }`}
+            >
+              <span className="tabular-nums">0{position}</span>
+              <span className="mx-1.5 hidden sm:inline">·</span>
+              <span className="hidden sm:inline">{label}</span>
+            </p>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
+
+/* ── Page ──────────────────────────────────────────────────────── */
 
 export default function Home() {
   const eventQuery = useQuery({ queryKey: ["event"], queryFn: () => apiGet<EventConfig>("/event"), retry: false });
   const event = eventQuery.data ?? FALLBACK_EVENT;
+  const reduced = useReducedMotion();
+
   const [form, setForm] = useState<FormValues>(INITIAL_FORM);
   const [registration, setRegistration] = useState<Registration | null>(null);
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofReference, setProofReference] = useState("");
 
-  const updateField = (field: keyof FormValues, value: string) => setForm((previous) => ({ ...previous, [field]: value }));
+  const updateField = (field: keyof FormValues, value: string) =>
+    setForm((previous) => ({ ...previous, [field]: value }));
 
   const createMutation = useMutation({
     mutationFn: (payload: FormValues) =>
       apiPost<RegistrationCreated>("/registrations", { ...payload, discovery_other: payload.discovery_other || null }),
     onSuccess: (data) => {
       setRegistration(data.registration);
-      toast.success("Details saved — complete your payment proof below.");
-      window.setTimeout(() => document.getElementById("payment-panel")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+      toast.success("Details saved. Payment is next.");
+      window.setTimeout(
+        () => document.getElementById("payment-panel")?.scrollIntoView({ behavior: "smooth", block: "center" }),
+        80,
+      );
     },
     onError: (error) =>
       toast.error(errorMessage(error, "We could not save your details. Please check the form and try again.")),
@@ -143,7 +237,7 @@ export default function Home() {
     },
     onSuccess: (data) => {
       setRegistration(data.registration);
-      toast.success("Proof submitted — your spot is waiting for organizer approval.");
+      toast.success("Proof received. We'll confirm shortly.");
     },
     onError: (error) =>
       toast.error(errorMessage(error, "Please upload a JPG, PNG or PDF payment screenshot under 5 MB.")),
@@ -155,6 +249,7 @@ export default function Home() {
     enabled: Boolean(registration?.id),
     refetchInterval: (query) => (query.state.data?.status === "paid" ? false : 3500),
   });
+
   const currentRegistration = statusQuery.data ?? registration;
   const upiPaymentLink = `upi://pay?pa=${encodeURIComponent(event.payment_upi_id)}&pn=${encodeURIComponent(event.payment_name)}&am=${event.price_amount}&cu=${event.currency}&tn=${encodeURIComponent(`${event.name} entry`)}`;
 
@@ -163,94 +258,603 @@ export default function Home() {
     createMutation.mutate(form);
   };
 
+  const isPaid = currentRegistration?.status === "paid";
+  const step: 1 | 2 | 3 = isPaid ? 3 : registration ? 2 : 1;
+
+  const heroIn = reduced ? { opacity: 0 } : { opacity: 0, y: 18 };
+
   return (
-    <main data-testid="event-page" className="min-h-screen overflow-hidden bg-[#0a0d14] text-slate-100">
-      <header data-testid="event-header-nav" className="relative z-20 border-b border-white/10 bg-[#0a0d14]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
-          <a href="#top" data-testid="brand-mark" className="group flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl border border-cyan-300/30 bg-cyan-300/10 text-cyan-300 transition-transform group-hover:rotate-6"><Sparkles size={19} /></span>
-            <span><span className="block font-heading text-lg font-bold tracking-tight">THE BOND</span><span className="block font-mono text-[9px] uppercase tracking-[0.24em] text-slate-500">connection club</span></span>
+    <div className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
+      {/* ── Masthead ─────────────────────────────────────────── */}
+      <header
+        data-testid="event-header-nav"
+        className="sticky top-0 z-40 border-b border-[var(--rule)] bg-[var(--paper)]/92 backdrop-blur-[2px]"
+      >
+        <div className="mx-auto flex max-w-[1180px] items-center justify-between gap-6 px-5 py-3.5 md:px-8">
+          <a href="#top" data-testid="brand-mark" className="group flex items-baseline gap-2.5">
+            <span className="font-heading text-[1.35rem] leading-none">The Bond</span>
+            <span aria-hidden="true" className="hidden h-3 w-px bg-[var(--rule)] sm:block" />
+            <span className="eyebrow hidden sm:block">Vadodara</span>
           </a>
-          <nav data-testid="event-nav-links" className="hidden items-center gap-7 text-sm text-slate-400 md:flex">
-            <a data-testid="nav-about-link" href="#included" className="transition-colors hover:text-cyan-300">What’s included</a>
-            <a data-testid="nav-rsvp-link" href="#rsvp" className="transition-colors hover:text-cyan-300">Book your spot</a>
-            <a data-testid="nav-admin-link" href="/admin" className="transition-colors hover:text-cyan-300">Organizer</a>
+
+          <nav data-testid="event-nav-links" className="flex items-center gap-6 text-[0.875rem]">
+            <a data-testid="nav-about-link" href="#included" className="link-rule hidden text-[var(--ink-soft)] hover:text-[var(--ink)] sm:inline">
+              The evening
+            </a>
+            <a data-testid="nav-admin-link" href="/admin" className="link-rule hidden text-[var(--ink-soft)] hover:text-[var(--ink)] sm:inline">
+              Organiser
+            </a>
+            <a data-testid="header-register-link" href="#rsvp" className="link-rule font-medium text-[var(--clay-deep)]">
+              Reserve
+            </a>
           </nav>
-          <a data-testid="header-register-link" href="#rsvp" className="hidden items-center gap-2 rounded-full bg-cyan-300 px-4 py-2 text-sm font-bold text-[#071017] transition-transform hover:-translate-y-0.5 sm:flex">Register <ArrowRight size={15} /></a>
         </div>
       </header>
 
-      <section id="top" data-testid="event-hero" className="relative isolate">
-        <div className="absolute inset-0 -z-10 bg-cover bg-center opacity-40" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1773385404894-104116c1ef31?auto=format&fit=crop&w=1800&q=85')" }} />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0a0d14]/45 via-[#0a0d14]/80 to-[#0a0d14]" />
-        <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-24 pt-20 lg:grid-cols-[1.06fr_0.94fr] lg:items-end lg:px-8 lg:pb-28 lg:pt-28">
-          <motion.div initial={{ opacity: 0, x: -22 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="max-w-3xl">
-            <div data-testid="event-hero-eyebrow" className="mb-6 flex items-center gap-3 font-mono text-xs uppercase tracking-[0.22em] text-cyan-300"><span className="h-px w-8 bg-cyan-300" /> {event.eyebrow}</div>
-            <h1 data-testid="event-hero-title" className="max-w-3xl font-heading text-5xl font-extrabold leading-[0.96] tracking-[-0.045em] text-white sm:text-6xl lg:text-8xl">Make it <span className="text-cyan-300">yours.</span></h1>
-            <p data-testid="event-hero-description" className="mt-7 max-w-xl text-lg leading-relaxed text-slate-300 sm:text-xl">{event.description} Come alone, bring a friend, and leave with something made by you.</p>
-            <div data-testid="event-hero-actions" className="mt-9 flex flex-wrap items-center gap-4">
-              <a data-testid="hero-register-link" href="#rsvp" className="inline-flex items-center gap-2 rounded-xl bg-cyan-300 px-5 py-3 font-bold text-[#071017] shadow-[0_0_30px_rgba(0,240,255,0.2)] transition-all hover:-translate-y-1 hover:bg-cyan-200">Book your spot <ArrowRight size={17} /></a>
-              <Badge data-testid="event-price-badge" className="h-11 rounded-xl border border-white/15 bg-white/10 px-4 font-mono text-sm text-white backdrop-blur-sm">{event.price_label} / person</Badge>
+      <main id="top" data-testid="event-page">
+        {/* ── Hero: 1.618 / 1 split ──────────────────────────── */}
+        <section data-testid="event-hero" className="mx-auto max-w-[1180px] px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-24">
+          <div className="grid gap-12 lg:grid-cols-[1.618fr_1fr] lg:gap-16">
+            <div className="max-w-[36ch]">
+              <motion.p
+                data-testid="event-hero-eyebrow"
+                className="eyebrow flex items-center gap-2"
+                initial={heroIn}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <Sparkle className="text-[var(--clay)]" size={11} />
+                {event.eyebrow}
+              </motion.p>
+
+              <motion.h1
+                data-testid="event-hero-title"
+                className="mt-5 text-[clamp(3rem,10vw,4.24rem)]"
+                initial={heroIn}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+              >
+                Make it
+                <span className="font-heading italic text-[var(--clay)]"> yours</span>.
+              </motion.h1>
+
+              <motion.p
+                data-testid="event-hero-description"
+                className="mt-7 max-w-[46ch] text-[1.0625rem] leading-[1.7] text-[var(--ink-soft)]"
+                initial={heroIn}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {event.description}
+              </motion.p>
+
+              <motion.div
+                data-testid="event-hero-actions"
+                className="mt-9 flex flex-wrap items-center gap-5"
+                initial={heroIn}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <a href="#rsvp" data-testid="hero-register-link" className="btn-ink">
+                  Reserve a place
+                </a>
+                <span data-testid="event-price-badge" className="text-[0.9rem] text-[var(--ink-soft)]">
+                  <span className="font-heading text-[1.25rem] text-[var(--ink)]">{event.price_label}</span> per person
+                </span>
+              </motion.div>
             </div>
-          </motion.div>
-          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18, duration: 0.6 }} className="lg:justify-self-end">
-            <div data-testid="event-quick-facts" className="grid max-w-md grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-[#111625]/75 p-2 backdrop-blur-xl">
-              <div data-testid="event-detail-date" className="rounded-xl bg-white/[0.06] p-4"><CalendarDays className="mb-5 text-cyan-300" size={18} /><p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Date</p><p className="mt-1 text-sm font-semibold text-white">17 Sep</p></div>
-              <div data-testid="event-detail-time" className="rounded-xl bg-white/[0.06] p-4"><Clock3 className="mb-5 text-cyan-300" size={18} /><p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Time</p><p className="mt-1 text-sm font-semibold text-white">5:30 PM</p></div>
-              <div data-testid="event-detail-venue" className="rounded-xl bg-white/[0.06] p-4"><MapPin className="mb-5 text-cyan-300" size={18} /><p className="font-mono text-[10px] uppercase tracking-widest text-slate-500">Venue</p><p className="mt-1 text-sm font-semibold text-white">Vadodara</p></div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
-      <section data-testid="event-countdown-section" className="mx-auto -mt-8 max-w-7xl px-5 lg:px-8">
-        <div className="grid gap-5 rounded-2xl border border-cyan-300/15 bg-[#111625]/90 p-5 shadow-2xl backdrop-blur-xl sm:grid-cols-[1fr_1.4fr] sm:items-center sm:p-7">
-          <div data-testid="countdown-copy"><p className="font-mono text-[10px] uppercase tracking-[0.24em] text-cyan-300">The clock is ticking</p><h2 className="mt-2 font-heading text-2xl font-bold text-white">See you under the sparkle.</h2></div>
-          <Countdown target={event.countdown_iso} />
-        </div>
-      </section>
-
-      <section id="included" data-testid="event-included-section" className="mx-auto grid max-w-7xl gap-14 px-5 py-24 lg:grid-cols-[0.8fr_1.2fr] lg:px-8">
-        <div><p data-testid="included-eyebrow" className="font-mono text-xs uppercase tracking-[0.22em] text-cyan-300">More than a tote bag</p><h2 data-testid="included-title" className="mt-4 max-w-md font-heading text-4xl font-bold leading-tight text-white sm:text-5xl">Come create. Come connect. Come belong.</h2><p data-testid="included-description" className="mt-6 max-w-md leading-relaxed text-slate-400">THE BOND is a community built around connection, creativity and shared experiences. This is your invitation to try something new together.</p></div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {event.included.map((item, index) => <div key={item} data-testid={`included-item-${index + 1}`} className="group rounded-2xl border border-white/10 bg-[#161c2e]/80 p-5 transition-all hover:-translate-y-1 hover:border-cyan-300/30"><CheckCircle2 className="mb-8 text-cyan-300 transition-transform group-hover:scale-110" size={20} /><p className="text-base font-medium leading-relaxed text-slate-200">{item}</p></div>)}
-        </div>
-      </section>
-
-      <section id="rsvp" data-testid="rsvp-section" className="mx-auto grid max-w-7xl gap-10 px-5 pb-28 lg:grid-cols-[0.86fr_1.14fr] lg:px-8">
-        <div data-testid="rsvp-intro" className="lg:sticky lg:top-28 lg:self-start"><p className="font-mono text-xs uppercase tracking-[0.22em] text-cyan-300">Reserve your seat</p><h2 className="mt-4 font-heading text-4xl font-bold leading-tight text-white sm:text-5xl">A little sparkle is waiting.</h2><p className="mt-6 max-w-md leading-relaxed text-slate-400">Fill in every detail, tap the UPI payment button, and upload your proof. Your invitation confirmation appears here after organizer approval.</p><div data-testid="manual-payment-note" className="mt-8 flex gap-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.06] p-4 text-sm leading-relaxed text-amber-100"><ShieldCheck className="mt-0.5 shrink-0 text-amber-300" size={18} /><span>UPI intent opens your payment app with ₹359 prefilled. Final payment confirmation still requires the organizer’s verified transaction statement.</span></div></div>
-        <Card data-testid="rsvp-form-container" className="rounded-3xl border-white/10 bg-[#161c2e]/90 py-0 shadow-2xl backdrop-blur-xl">
-          <CardHeader data-testid="rsvp-form-header" className="border-b border-white/10 px-6 py-7 sm:px-8"><div className="flex items-start justify-between gap-4"><div><Badge data-testid="rsvp-form-badge" className="border border-cyan-300/20 bg-cyan-300/10 text-cyan-300">Step 01 · Details</Badge><CardTitle data-testid="rsvp-form-title" className="mt-4 text-2xl text-white">Book your spot</CardTitle><CardDescription data-testid="rsvp-form-description" className="mt-2 text-slate-400">Every field is required so we can make your experience feel personal.</CardDescription></div><Ticket data-testid="rsvp-form-icon" className="text-cyan-300" /></div></CardHeader>
-          <CardContent className="px-6 py-7 sm:px-8">
-            {!registration ? <form data-testid="registration-form" onSubmit={submitRegistration} className="space-y-5">
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field id="field-full-name" label="Name of participant"><Input data-testid="field-full-name-input" id="field-full-name" required autoComplete="name" value={form.full_name} onChange={(e) => updateField("full_name", e.target.value)} placeholder="Your full name" /></Field>
-                <Field id="field-email" label="Email ID"><Input data-testid="field-email-input" id="field-email" required type="email" autoComplete="email" inputMode="email" value={form.email} onChange={(e) => updateField("email", e.target.value)} placeholder="you@example.com" /></Field>
-                <Field id="field-phone" label="Phone number"><Input data-testid="field-phone-input" id="field-phone" required type="tel" inputMode="tel" autoComplete="tel" value={form.phone} onChange={(e) => updateField("phone", e.target.value)} placeholder="10 digit mobile number" /></Field>
-                <Field id="field-age" label="Age"><Input data-testid="field-age-input" id="field-age" required inputMode="numeric" pattern="[0-9]*" maxLength={3} value={form.age} onChange={(e) => updateField("age", e.target.value)} placeholder="Your age" /></Field>
+            {/* Artwork + particulars */}
+            <motion.aside
+              data-testid="event-quick-facts"
+              className="lg:pt-2"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ToteIllustration className="mx-auto mb-10 w-[180px] max-w-full sm:w-[220px] lg:mx-0 lg:mb-12 lg:w-[240px]" />
+              <Particular label="Date" value={event.date_label} testId="event-detail-date" />
+              <Particular label="Time" value={event.time_label} testId="event-detail-time" />
+              <Particular label="Place" value={event.venue} testId="event-detail-venue" />
+              <Particular label="Entry" value={`${event.price_label} per person`} />
+              <div className="border-t border-[var(--rule)] pt-4">
+                <CountdownLine target={event.countdown_iso} />
               </div>
-              <Field id="field-participant-type" label="You are a">
-                <select data-testid="field-participant-type-input" id="field-participant-type" value={form.participant_type} onChange={(e) => updateField("participant_type", e.target.value)} className="h-10 w-full rounded-lg border border-white/10 bg-[#0a0d14] px-3 text-sm text-white outline-none transition-colors focus:border-cyan-300"><option>Student</option><option>Working Professional</option><option>Other</option></select>
-              </Field>
-              <Field id="field-discovery-source" label="How did you hear about this event?"><select data-testid="field-discovery-source-input" id="field-discovery-source" value={form.discovery_source} onChange={(e) => updateField("discovery_source", e.target.value)} className="h-10 w-full rounded-lg border border-white/10 bg-[#0a0d14] px-3 text-sm text-white outline-none transition-colors focus:border-cyan-300"><option>Instagram</option><option>WhatsApp</option><option>Friends</option><option>Colleagues</option><option>Others</option></select></Field>
-              {form.discovery_source === "Others" && <Field id="field-discovery-other" label="Please mention"><Input data-testid="field-discovery-other-input" id="field-discovery-other" required value={form.discovery_other} onChange={(e) => updateField("discovery_other", e.target.value)} placeholder="Tell us where you found us" /></Field>}
-              <div data-testid="payment-step-preview" className="border-t border-white/10 pt-5"><p data-testid="payment-step-label" className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-300">Step 02 · Payment</p><p data-testid="payment-instruction" className="text-xs leading-relaxed text-slate-500">After your details are saved, the secure UPI button will open Google Pay or your preferred UPI app with ₹359 prefilled.</p></div>
-              <Button data-testid="submit-registration-btn" type="submit" size="lg" disabled={createMutation.isPending} className="h-12 w-full rounded-xl bg-cyan-300 font-bold text-[#071017] hover:bg-cyan-200">{createMutation.isPending ? "Saving your spot…" : "Continue to payment"}<ArrowRight size={17} /></Button>
-              <p data-testid="privacy-note" className="text-center text-xs leading-relaxed text-slate-500">By continuing, you agree that The Bond may use these details to coordinate your booking and event updates.</p>
-            </form> : <div data-testid="payment-panel" id="payment-panel" className="space-y-6">
-              <div data-testid="registration-created-state" className="flex gap-3 rounded-2xl border border-emerald-300/20 bg-emerald-300/[0.07] p-4 text-sm leading-relaxed text-emerald-100"><Check className="mt-0.5 shrink-0 text-emerald-300" size={18} /><span>Details saved. Tap the button below to pay ₹359, then attach your payment proof.</span></div>
-              <div data-testid="payment-method-card" className="rounded-2xl border border-white/10 bg-[#0a0d14]/70 p-5"><div className="flex items-center justify-between gap-3"><div><p data-testid="payment-method-label" className="font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-300">UPI payment</p><h3 data-testid="payment-method-title" className="mt-2 font-heading text-xl font-semibold text-white">Pay ₹359 to reserve</h3></div><Badge data-testid="payment-safety-badge" className="border border-amber-300/20 bg-amber-300/10 text-[10px] text-amber-200">Fixed amount</Badge></div><div data-testid="payment-destination-copy" className="mt-5 space-y-4 text-sm text-slate-300">{event.payment_qr_url && <img data-testid="payment-qr-image" src={event.payment_qr_url} alt="The Bond payment QR code" className="mx-auto max-w-[180px] rounded-xl border border-white/10 bg-white p-3" />}<p>On mobile, this button opens Google Pay or another UPI app with the amount already filled. On desktop, use the UPI app on your phone and return here with the transaction reference.</p><a data-testid="upi-pay-button" href={upiPaymentLink} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-3 font-bold text-[#071017] transition-all hover:-translate-y-0.5 hover:bg-cyan-200">Open Google Pay / UPI app <ArrowRight size={16} /></a><div className="rounded-lg border border-white/10 bg-white/[0.04] p-3"><p className="font-mono text-xs text-slate-500">Payment destination</p><p data-testid="payment-upi-id" className="mt-1 font-mono font-semibold text-cyan-300">{event.payment_upi_id}</p><p data-testid="payment-recipient-name" className="mt-1 text-xs text-slate-500">{event.payment_name}</p></div></div></div>
-              <form data-testid="proof-upload-form" onSubmit={(e) => { e.preventDefault(); proofMutation.mutate(); }} className="space-y-4"><div data-testid="proof-upload-instruction"><p className="font-mono text-[10px] uppercase tracking-[0.2em] text-cyan-300">Step 03 · Confirm payment</p><p className="mt-2 text-sm leading-relaxed text-slate-400">Enter the UTR from the payment app and attach your screenshot. The organizer checks it before confirming your invitation.</p></div><Field id="payment-reference-input" label="UPI / transaction reference"><Input data-testid="payment-reference-input" id="payment-reference-input" required value={proofReference} onChange={(e) => setProofReference(e.target.value)} placeholder="Enter your UTR after payment" /></Field><label data-testid="proof-file-label" htmlFor="proof-file" className="flex cursor-pointer items-center gap-4 rounded-xl border border-dashed border-white/20 bg-white/[0.03] p-4 transition-colors hover:border-cyan-300/50"><UploadCloud className="text-cyan-300" size={22} /><span><span className="block text-sm font-medium text-white">Choose payment screenshot</span><span data-testid="proof-file-help" className="block text-xs text-slate-500">JPG, PNG or PDF · max 5 MB</span></span><Input data-testid="proof-file-input" id="proof-file" type="file" accept="image/jpeg,image/png,application/pdf" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} className="sr-only" /></label>{proofFile && <p data-testid="proof-file-selected" className="text-xs text-cyan-300">Selected: {proofFile.name}</p>}<Button data-testid="submit-proof-btn" type="submit" disabled={!proofFile || !proofReference || proofMutation.isPending || currentRegistration?.status === "paid"} size="lg" className="h-12 w-full rounded-xl bg-cyan-300 font-bold text-[#071017] hover:bg-cyan-200">{proofMutation.isPending ? "Uploading proof…" : "Submit payment confirmation"}<UploadCloud size={17} /></Button></form>
-              {currentRegistration?.status === "proof_submitted" && <div data-testid="proof-pending-state" className="rounded-2xl border border-cyan-300/20 bg-cyan-300/[0.06] p-4 text-sm leading-relaxed text-cyan-100"><Clock3 className="mb-3 text-cyan-300" size={18} /><p>Your payment is under review. Keep this page open — your invitation confirmation appears here after The Bond team approves it.</p></div>}
-              {currentRegistration?.status === "paid" && <div data-testid="booking-confirmed-display" className="rounded-2xl border border-emerald-300/30 bg-emerald-950/30 p-6 shadow-[0_0_35px_rgba(16,185,129,0.12)]"><div className="flex items-center justify-between gap-3"><div><p data-testid="booking-status-label" className="font-mono text-[10px] uppercase tracking-[0.2em] text-emerald-300">Invitation confirmed</p><h3 data-testid="booking-confirmed-title" className="mt-2 font-heading text-2xl font-bold text-white">You’re on the guest list.</h3></div><CheckCircle2 className="text-emerald-300" /></div><p data-testid="booking-confirmed-copy" className="mt-5 text-sm leading-relaxed text-slate-300">Thank you, {currentRegistration.full_name}. Your ₹359 payment has been approved and your invitation email will contain the event details.</p><p data-testid="confirmation-email-status" className="mt-5 text-xs leading-relaxed text-slate-500">Email confirmation: <span className={currentRegistration.integration_statuses.email === "SENT" ? "text-emerald-300" : "text-amber-200"}>{currentRegistration.integration_statuses.email}</span></p></div>}
-            </div>}
-          </CardContent>
-        </Card>
-      </section>
+            </motion.aside>
+          </div>
+        </section>
 
-      <footer data-testid="event-footer" className="border-t border-white/10 bg-[#070a10]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-10 sm:flex-row sm:items-center sm:justify-between lg:px-8"><div><p data-testid="footer-brand" className="font-heading text-xl font-bold text-white">THE BOND <span className="text-cyan-300">🤍</span></p><p data-testid="footer-tagline" className="mt-1 text-sm text-slate-500">Where creativity meets connection.</p></div><div data-testid="social-links" className="flex gap-3"><a data-testid="instagram-link" href={event.instagram_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-cyan-300/30 hover:text-cyan-300"><Instagram size={16} /> Instagram <ExternalLink size={12} /></a><a data-testid="whatsapp-link" href={event.whatsapp_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-sm text-slate-300 transition-colors hover:border-cyan-300/30 hover:text-cyan-300"><MessageCircle size={16} /> WhatsApp <ExternalLink size={12} /></a></div></div>
+        {/* ── Full-width quiet band, dusted with confetti ─────── */}
+        <section className="relative isolate overflow-hidden border-y border-[var(--rule)] bg-[var(--paper-deep)]">
+          <ConfettiField className="pointer-events-none absolute inset-0 -z-10 h-full w-full" />
+          <div className="mx-auto max-w-[1180px] px-5 py-14 md:px-8 md:py-20">
+            <Reveal>
+              <p className="max-w-[24ch] font-heading text-[clamp(1.75rem,4.4vw,2.62rem)] leading-[1.2]">
+                Come alone or bring someone. Leave with something
+                <span className="italic text-[var(--clay)]"> you made</span>.
+              </p>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ── What's included: narrow title / wide list ──────── */}
+        <section id="included" data-testid="event-included-section" className="mx-auto max-w-[1180px] px-5 py-16 md:px-8 md:py-24">
+          <div className="grid gap-10 lg:grid-cols-[1fr_1.618fr] lg:gap-16">
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <Reveal>
+                <p data-testid="included-eyebrow" className="eyebrow">
+                  What the evening holds
+                </p>
+                <h2 data-testid="included-title" className="mt-4 max-w-[14ch] text-[clamp(1.9rem,4.6vw,2.62rem)]">
+                  More than a tote bag.
+                </h2>
+                <p data-testid="included-description" className="mt-5 max-w-[38ch] text-[0.975rem] leading-[1.75] text-[var(--ink-soft)]">
+                  The Bond is a small community built around making things together. This is the
+                  invitation to try one.
+                </p>
+              </Reveal>
+            </div>
+
+            <ol className="lg:pt-1">
+              {event.included.map((item, index) => (
+                <Reveal key={item} delay={index * 0.05}>
+                  <li
+                    data-testid={`included-item-${index + 1}`}
+                    className="group flex items-baseline gap-5 border-t border-[var(--rule)] py-5 last:border-b md:gap-8 md:py-6"
+                  >
+                    <span className="font-heading text-[0.95rem] italic text-[var(--clay)] tabular-nums">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-[1.0625rem] leading-snug">{item}</span>
+                  </li>
+                </Reveal>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ── Reservation ────────────────────────────────────── */}
+        <section id="rsvp" data-testid="rsvp-section" className="border-t border-[var(--rule)] bg-[var(--paper-deep)]">
+          <div className="mx-auto max-w-[1180px] px-5 py-16 md:px-8 md:py-24">
+            <div className="grid gap-10 lg:grid-cols-[1fr_1.618fr] lg:gap-16">
+              {/* Left rail */}
+              <div data-testid="rsvp-intro" className="lg:sticky lg:top-24 lg:self-start">
+                <Reveal>
+                  <p className="eyebrow">Reservation</p>
+                  <h2 className="mt-4 max-w-[12ch] text-[clamp(1.9rem,4.6vw,2.62rem)]">
+                    Save your
+                    <span className="italic text-[var(--clay)]"> seat</span>.
+                  </h2>
+                  <p className="mt-5 max-w-[36ch] text-[0.975rem] leading-[1.75] text-[var(--ink-soft)]">
+                    Fill in your details, pay the {event.price_label} entry through UPI, and send us the
+                    receipt. We confirm each booking by hand.
+                  </p>
+
+                  <div data-testid="manual-payment-note" className="mt-8 border-l-2 border-[var(--clay)] pl-4">
+                    <p className="text-[0.85rem] leading-[1.7] text-[var(--ink-soft)]">
+                      A UPI link can't tell us on its own that money arrived, so an organiser checks the
+                      transfer against the account before confirming. We never ask for card numbers, a UPI
+                      PIN, or anything similar.
+                    </p>
+                  </div>
+                </Reveal>
+              </div>
+
+              {/* The form panel — treated as a printed form */}
+              <Reveal delay={0.08}>
+                <div
+                  data-testid="rsvp-form-container"
+                  className="border border-[var(--rule)] bg-[var(--paper-card)]"
+                >
+                  <div data-testid="rsvp-form-header" className="border-b border-[var(--rule)] px-6 py-6 md:px-9 md:py-7">
+                    <div className="flex items-baseline justify-between gap-4">
+                      <h3 data-testid="rsvp-form-title" className="text-[1.62rem]">
+                        {step === 3 ? "You're on the list" : step === 2 ? "Payment" : "Your details"}
+                      </h3>
+                      <span data-testid="rsvp-form-badge" className="eyebrow shrink-0">
+                        Step 0{step} / 03
+                      </span>
+                    </div>
+                    <div className="mt-5">
+                      <StepRule current={step} />
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-7 md:px-9 md:py-9">
+                    {!registration ? (
+                      /* ── Step 1 ─────────────────────────── */
+                      <form data-testid="registration-form" onSubmit={submitRegistration} className="space-y-7">
+                        <p data-testid="rsvp-form-description" className="text-[0.9rem] leading-relaxed text-[var(--ink-soft)]">
+                          Every field is required — it helps us plan the room and the materials.
+                        </p>
+
+                        <div className="grid gap-7 sm:grid-cols-2">
+                          <Field id="field-full-name" label="Name">
+                            <input
+                              data-testid="field-full-name-input"
+                              id="field-full-name"
+                              className="field-line"
+                              required
+                              autoComplete="name"
+                              value={form.full_name}
+                              onChange={(e) => updateField("full_name", e.target.value)}
+                              placeholder="Your full name"
+                            />
+                          </Field>
+
+                          <Field id="field-email" label="Email">
+                            <input
+                              data-testid="field-email-input"
+                              id="field-email"
+                              className="field-line"
+                              required
+                              type="email"
+                              autoComplete="email"
+                              inputMode="email"
+                              value={form.email}
+                              onChange={(e) => updateField("email", e.target.value)}
+                              placeholder="you@example.com"
+                            />
+                          </Field>
+
+                          <Field id="field-phone" label="Phone">
+                            <input
+                              data-testid="field-phone-input"
+                              id="field-phone"
+                              className="field-line"
+                              required
+                              type="tel"
+                              inputMode="tel"
+                              autoComplete="tel"
+                              value={form.phone}
+                              onChange={(e) => updateField("phone", e.target.value)}
+                              placeholder="10 digit mobile"
+                            />
+                          </Field>
+
+                          <Field id="field-age" label="Age">
+                            <input
+                              data-testid="field-age-input"
+                              id="field-age"
+                              className="field-line"
+                              required
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={3}
+                              value={form.age}
+                              onChange={(e) => updateField("age", e.target.value)}
+                              placeholder="21"
+                            />
+                          </Field>
+
+                          <Field id="field-participant-type" label="You are">
+                            <select
+                              data-testid="field-participant-type-input"
+                              id="field-participant-type"
+                              className="field-line field-line-select"
+                              value={form.participant_type}
+                              onChange={(e) => updateField("participant_type", e.target.value)}
+                            >
+                              <option>Student</option>
+                              <option>Working Professional</option>
+                              <option>Other</option>
+                            </select>
+                          </Field>
+
+                          <Field id="field-discovery-source" label="How you found us">
+                            <select
+                              data-testid="field-discovery-source-input"
+                              id="field-discovery-source"
+                              className="field-line field-line-select"
+                              value={form.discovery_source}
+                              onChange={(e) => updateField("discovery_source", e.target.value)}
+                            >
+                              <option>Instagram</option>
+                              <option>WhatsApp</option>
+                              <option>Friends</option>
+                              <option>Colleagues</option>
+                              <option>Others</option>
+                            </select>
+                          </Field>
+                        </div>
+
+                        {form.discovery_source === "Others" && (
+                          <Field id="field-discovery-other" label="Tell us where">
+                            <input
+                              data-testid="field-discovery-other-input"
+                              id="field-discovery-other"
+                              className="field-line"
+                              required
+                              value={form.discovery_other}
+                              onChange={(e) => updateField("discovery_other", e.target.value)}
+                              placeholder="A poster, a friend of a friend…"
+                            />
+                          </Field>
+                        )}
+
+                        <div data-testid="payment-step-preview" className="border-t border-[var(--rule)] pt-6">
+                          <p data-testid="payment-step-label" className="eyebrow">
+                            Next
+                          </p>
+                          <p data-testid="payment-instruction" className="mt-2 text-[0.875rem] leading-relaxed text-[var(--ink-soft)]">
+                            Once your details are saved we'll open your UPI app with {event.price_label} already
+                            filled in.
+                          </p>
+                        </div>
+
+                        <div>
+                          <button
+                            data-testid="submit-registration-btn"
+                            type="submit"
+                            disabled={createMutation.isPending}
+                            className="btn-ink w-full sm:w-auto sm:min-w-[15rem]"
+                          >
+                            {createMutation.isPending ? "Saving…" : "Continue to payment"}
+                          </button>
+                          <p data-testid="privacy-note" className="mt-4 max-w-[52ch] text-[0.75rem] leading-relaxed text-[var(--ink-soft)]">
+                            We use these details only to organise your booking and to send you event updates.
+                          </p>
+                        </div>
+                      </form>
+                    ) : (
+                      /* ── Steps 2 & 3 ────────────────────── */
+                      <div data-testid="payment-panel" id="payment-panel" className="space-y-8">
+                        <div data-testid="registration-created-state" className="flex items-baseline gap-3">
+                          <span aria-hidden="true" className="mt-px h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--clay)]" />
+                          <p className="text-[0.9rem] leading-relaxed text-[var(--ink-soft)]">
+                            Saved for <span className="text-[var(--ink)]">{currentRegistration?.full_name}</span>. Pay
+                            the entry below, then send the receipt.
+                          </p>
+                        </div>
+
+                        {/* Amount + UPI handoff */}
+                        <div data-testid="payment-method-card" className="border-t border-[var(--rule)] pt-7">
+                          <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div>
+                              <p data-testid="payment-method-label" className="eyebrow">
+                                Amount due
+                              </p>
+                              <p data-testid="payment-method-title" className="mt-2 font-heading text-[2.62rem] leading-none">
+                                {event.price_label}
+                              </p>
+                            </div>
+                            <span data-testid="payment-safety-badge" className="eyebrow">
+                              Fixed · one place
+                            </span>
+                          </div>
+
+                          <div data-testid="payment-destination-copy" className="mt-7">
+                            {/* Route one — Android hands upi:// straight to the payment app. */}
+                            <a data-testid="upi-pay-button" href={upiPaymentLink} className="btn-ink w-full">
+                              Open your UPI app
+                            </a>
+                            <p className="mt-3 text-[0.8rem] leading-relaxed text-[var(--ink-soft)]">
+                              Works on Android, where it opens Google Pay or PhonePe with {event.price_label} already
+                              filled in.
+                            </p>
+
+                            {/* Route two — the QR. iPhones ignore upi:// links, so this is the way in
+                                for every iOS attendee, and for anyone paying from a laptop. */}
+                            {event.payment_qr_url && (
+                              <div data-testid="payment-qr-block" className="mt-8 border-t border-[var(--rule)] pt-8">
+                                <p className="eyebrow">On iPhone, or paying from a laptop</p>
+
+                                <figure className="mt-5 flex flex-col items-center">
+                                  <img
+                                    data-testid="payment-qr-image"
+                                    src={event.payment_qr_url}
+                                    alt={`UPI QR code to pay ${event.payment_name} at ${event.payment_upi_id}`}
+                                    width={220}
+                                    height={220}
+                                    className="w-[220px] max-w-full border border-[var(--rule)] bg-white p-2"
+                                  />
+                                  <a
+                                    data-testid="download-qr-button"
+                                    href={event.payment_qr_url}
+                                    download="the-bond-upi-qr.jpg"
+                                    className="btn-outline-ink mt-5 w-full sm:w-auto sm:min-w-[15rem]"
+                                  >
+                                    Save the QR code
+                                  </a>
+                                </figure>
+
+                                <ol data-testid="qr-instructions" className="mt-6 space-y-2.5 text-[0.8rem] leading-relaxed text-[var(--ink-soft)]">
+                                  <li className="flex gap-3">
+                                    <span className="font-heading italic text-[var(--clay)] tabular-nums">01</span>
+                                    <span>Save the QR to your photos, or scan it from another phone.</span>
+                                  </li>
+                                  <li className="flex gap-3">
+                                    <span className="font-heading italic text-[var(--clay)] tabular-nums">02</span>
+                                    <span>
+                                      Open Google Pay, PhonePe or Paytm, choose scan, then pick the saved image from
+                                      your gallery.
+                                    </span>
+                                  </li>
+                                  <li className="flex gap-3">
+                                    <span className="font-heading italic text-[var(--clay)] tabular-nums">03</span>
+                                    <span>
+                                      Enter {event.price_label}, pay, then come back here with the UTR and a screenshot.
+                                    </span>
+                                  </li>
+                                </ol>
+                              </div>
+                            )}
+
+                            <dl className="mt-8 border-t border-[var(--rule)] pt-4 text-[0.875rem]">
+                              <div className="flex items-baseline justify-between gap-4 py-1.5">
+                                <dt className="eyebrow">Paying to</dt>
+                                <dd data-testid="payment-upi-id" className="text-right break-all text-[var(--ink)]">
+                                  {event.payment_upi_id}
+                                </dd>
+                              </div>
+                              <div className="flex items-baseline justify-between gap-4 py-1.5">
+                                <dt className="eyebrow">Account name</dt>
+                                <dd data-testid="payment-recipient-name" className="text-right text-[var(--ink-soft)]">
+                                  {event.payment_name}
+                                </dd>
+                              </div>
+                            </dl>
+                          </div>
+                        </div>
+
+                        {/* Proof upload */}
+                        {!isPaid && (
+                          <form
+                            data-testid="proof-upload-form"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              proofMutation.mutate();
+                            }}
+                            className="space-y-6 border-t border-[var(--rule)] pt-7"
+                          >
+                            <div data-testid="proof-upload-instruction">
+                              <p className="eyebrow">Confirm your payment</p>
+                              <p className="mt-2 text-[0.875rem] leading-relaxed text-[var(--ink-soft)]">
+                                Add the UTR from your payment app and the screenshot. An organiser checks it
+                                against the account before confirming.
+                              </p>
+                            </div>
+
+                            <Field id="payment-reference-input" label="UTR / reference number">
+                              <input
+                                data-testid="payment-reference-input"
+                                id="payment-reference-input"
+                                className="field-line"
+                                required
+                                value={proofReference}
+                                onChange={(e) => setProofReference(e.target.value)}
+                                placeholder="e.g. 4829 1047 2213"
+                              />
+                            </Field>
+
+                            <div>
+                              <span className="eyebrow mb-2 block">
+                                Payment screenshot
+                                <span aria-hidden="true" className="ml-1 text-[var(--clay)]">*</span>
+                              </span>
+                              <label
+                                data-testid="proof-file-label"
+                                htmlFor="proof-file"
+                                className="flex cursor-pointer items-center justify-between gap-4 border border-dashed border-[var(--rule)] px-4 py-4 transition-colors hover:border-[var(--clay)] focus-within:border-[var(--clay)]"
+                              >
+                                <span className="min-w-0">
+                                  <span className="block text-[0.9rem] text-[var(--ink)]">
+                                    {proofFile ? "Change file" : "Choose a file"}
+                                  </span>
+                                  <span data-testid="proof-file-help" className="mt-0.5 block text-[0.75rem] text-[var(--ink-soft)]">
+                                    JPG, PNG or PDF · up to 5 MB
+                                  </span>
+                                </span>
+                                <span aria-hidden="true" className="eyebrow shrink-0">
+                                  Browse
+                                </span>
+                                <input
+                                  data-testid="proof-file-input"
+                                  id="proof-file"
+                                  type="file"
+                                  accept="image/jpeg,image/png,application/pdf"
+                                  onChange={(e) => setProofFile(e.target.files?.[0] ?? null)}
+                                  className="sr-only"
+                                />
+                              </label>
+                              {proofFile && (
+                                <p data-testid="proof-file-selected" className="mt-2 truncate text-[0.8rem] text-[var(--clay-deep)]">
+                                  {proofFile.name}
+                                </p>
+                              )}
+                            </div>
+
+                            <button
+                              data-testid="submit-proof-btn"
+                              type="submit"
+                              disabled={!proofFile || !proofReference || proofMutation.isPending}
+                              className="btn-ink w-full sm:w-auto sm:min-w-[15rem]"
+                            >
+                              {proofMutation.isPending ? "Sending…" : "Send payment proof"}
+                            </button>
+                          </form>
+                        )}
+
+                        {/* Awaiting review */}
+                        {currentRegistration?.status === "proof_submitted" && (
+                          <div data-testid="proof-pending-state" className="border-t border-[var(--rule)] pt-7">
+                            <p className="eyebrow">Under review</p>
+                            <p className="mt-2 max-w-[52ch] text-[0.9rem] leading-relaxed text-[var(--ink-soft)]">
+                              Your proof is with the organisers. Keep this page open — your confirmation appears
+                              here the moment it's approved.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Confirmed */}
+                        {isPaid && currentRegistration && (
+                          <motion.div
+                            data-testid="booking-confirmed-display"
+                            initial={reduced ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                            className="border-t border-[var(--rule)] pt-8"
+                          >
+                            <p data-testid="booking-status-label" className="eyebrow flex items-center gap-2 text-[var(--clay-deep)]">
+                              <Sparkle className="text-[var(--clay)]" size={12} />
+                              Reservation confirmed
+                            </p>
+                            <h4 data-testid="booking-confirmed-title" className="mt-3 font-heading text-[2rem] leading-tight">
+                              We'll see you there,
+                              <span className="italic text-[var(--clay)]"> {currentRegistration.full_name.split(" ")[0]}</span>.
+                            </h4>
+                            <p data-testid="booking-confirmed-copy" className="mt-4 max-w-[50ch] text-[0.95rem] leading-[1.75] text-[var(--ink-soft)]">
+                              Your {event.price_label} entry is approved. {event.date_label}, {event.time_label}, at{" "}
+                              {event.venue}. Come a few minutes early so we can start together.
+                            </p>
+                            <p data-testid="confirmation-email-status" className="mt-6 border-t border-[var(--rule)] pt-4 text-[0.75rem] text-[var(--ink-soft)]">
+                              Invitation email — {currentRegistration.integration_statuses.email}
+                            </p>
+                          </motion.div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* ── Footer ───────────────────────────────────────────── */}
+      <footer data-testid="event-footer" className="border-t border-[var(--rule)]">
+        <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-5 py-10 md:flex-row md:items-end md:justify-between md:px-8 md:py-12">
+          <div>
+            <p data-testid="footer-brand" className="font-heading text-[1.35rem] leading-none">
+              The Bond
+            </p>
+            <p data-testid="footer-tagline" className="mt-2 text-[0.85rem] text-[var(--ink-soft)]">
+              Where creativity meets connection · Vadodara
+            </p>
+          </div>
+          <div data-testid="social-links" className="flex gap-6 text-[0.875rem]">
+            <a
+              data-testid="instagram-link"
+              href={event.instagram_url}
+              target="_blank"
+              rel="noreferrer"
+              className="link-rule text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            >
+              Instagram
+            </a>
+            <a
+              data-testid="whatsapp-link"
+              href={event.whatsapp_url}
+              target="_blank"
+              rel="noreferrer"
+              className="link-rule text-[var(--ink-soft)] hover:text-[var(--ink)]"
+            >
+              WhatsApp
+            </a>
+          </div>
+        </div>
       </footer>
-    </main>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, Form, Header, HTTPException, UploadFile
 
+from lib import auth
 from lib.integrations import dispatch_registration_sheet, dispatch_post_approval, _update_sheet_row
 from lib.store import find_and_update, get_registration, insert_registration, list_registrations, update_registration
 from models.registration import (
@@ -50,10 +51,57 @@ def _registration(doc: dict) -> Registration:
     )
 
 
-def _require_admin(pin: str | None) -> None:
+def _require_admin(pin: str | None, authorization: str | None = None) -> str:
+    """Authorise an organiser action and return who did it.
+
+    Preferred path is a bearer token from POST /admin/login (email + password).
+    The older X-Admin-Pin header keeps working ONLY while no organiser accounts are
+    configured, so an existing deployment does not lock itself out mid-event. As soon as
+    ORGANISER_ACCOUNTS and AUTH_SECRET are set, the PIN is no longer accepted.
+    """
+    if auth.login_enabled():
+        token = ""
+        if authorization and authorization.lower().startswith("bearer "):
+            token = authorization[7:].strip()
+        organiser = auth.organiser_from_token(token)
+        if not organiser:
+            raise HTTPException(status_code=401, detail="Please sign in again")
+        return organiser.email
+
     expected = os.environ.get("ADMIN_PIN", "")
     if not expected or not pin or not secrets.compare_digest(pin, expected):
         raise HTTPException(status_code=401, detail="Incorrect organizer PIN")
+    return "pin"
+
+
+@router.post("/admin/login")
+async def organiser_login(payload: dict) -> dict:
+    """Exchange email + password for a session token."""
+    if not auth.login_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Organiser sign-in is not configured yet. Set ORGANISER_ACCOUNTS and AUTH_SECRET.",
+        )
+
+    email = str(payload.get("email", "")).strip().lower()
+    password = str(payload.get("password", ""))
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="Enter your email and password")
+
+    if auth.too_many_attempts(email):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts. Wait fifteen minutes and try again.",
+        )
+
+    if not auth.verify_password(email, password):
+        auth.record_failure(email)
+        # Deliberately vague: never reveal which of the two was wrong.
+        raise HTTPException(status_code=401, detail="That email and password did not match")
+
+    auth.clear_failures(email)
+    token, expires_in = auth.issue_token(email)
+    return {"token": token, "email": email, "expires_in": expires_in}
 
 
 @router.post("/registrations", response_model=RegistrationCreated)
@@ -142,8 +190,11 @@ async def submit_payment_proof(
 
 
 @router.get("/admin/registrations", response_model=list[Registration])
-async def list_registrations_route(x_admin_pin: str | None = Header(default=None, alias="X-Admin-Pin")) -> list[Registration]:
-    _require_admin(x_admin_pin)
+async def list_registrations_route(
+    x_admin_pin: str | None = Header(default=None, alias="X-Admin-Pin"),
+    authorization: str | None = Header(default=None),
+) -> list[Registration]:
+    _require_admin(x_admin_pin, authorization)
     docs = await list_registrations()
     return [_registration(doc) for doc in docs]
 
@@ -152,8 +203,9 @@ async def list_registrations_route(x_admin_pin: str | None = Header(default=None
 async def approve_registration(
     registration_id: str,
     x_admin_pin: str | None = Header(default=None, alias="X-Admin-Pin"),
+    authorization: str | None = Header(default=None),
 ) -> ApprovalResponse:
-    _require_admin(x_admin_pin)
+    _require_admin(x_admin_pin, authorization)
     now = datetime.now(timezone.utc)
     updated = await find_and_update(
         registration_id,

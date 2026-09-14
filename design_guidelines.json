@@ -1,0 +1,98 @@
+{
+  "project_name": "Nexus Pass - Self-Hostable Event RSVP & Payment Platform",
+  "app_type": "hybrid_fullstack",
+  "archetype": "THE PERFORMANCE PRO / ELECTRIFYING EVENT BRAND",
+  "theme": "dark",
+  "instructions_to_main_agent": "Build a self-hostable, high-converting event entry website and entry pass system. The application must feature: 1) Event Landing Header & Hero with live countdown, 2) Configurable Custom Form Fields Generator, 3) Non-merchant manual payment intent flow (UPI QR, Bank Direct Wire, Zelle/Venmo, Manual Receipt Upload), 4) Instant Hexadecimal Entry Pass Generation with verification status & printable badge QR, 5) Integrations Simulator & Config Drawer (Google Sheets webhook sync, Google Calendar .ics export/add, Email invitation dispatch preview), and 6) Self-Host Zip Packaging & Config Export wizard.",
+  "typography": {
+    "heading_font": "Outfit, Clash Display, sans-serif",
+    "body_font": "Geist Variable, Inter, sans-serif",
+    "mono_font": "JetBrains Mono, Source Code Pro, monospace",
+    "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-none",
+    "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight",
+    "h3_subsection": "text-xl sm:text-2xl font-semibold",
+    "h4_card": "text-lg sm:text-xl font-medium",
+    "body_text": "text-base text-slate-300 leading-relaxed",
+    "caption_label": "text-xs font-mono uppercase tracking-[0.2em] text-cyan-400"
+  },
+  "colors": {
+    "background_primary": "#0A0D14",
+    "background_secondary": "#111625",
+    "background_card": "#161C2E",
+    "border_color": "rgba(255, 255, 255, 0.12)",
+    "primary_accent": "#00F0FF",
+    "primary_accent_hover": "#00C2D1",
+    "secondary_accent": "#7000FF",
+    "success_mint": "#10B981",
+    "warning_amber": "#F59E0B",
+    "text_main": "#F8FAFC",
+    "text_muted": "#94A3B8",
+    "hex_code_highlight": "#00F0FF"
+  },
+  "surface_strategies": {
+    "hero_overlay": "bg-gradient-to-b from-black/60 via-[#0A0D14]/80 to-[#0A0D14]",
+    "card_style": "rounded-2xl border border-white/10 bg-[#161C2E]/90 backdrop-blur-xl shadow-2xl p-6 sm:p-8",
+    "hex_pass_badge": "border border-cyan-500/30 bg-cyan-950/40 rounded-xl p-6 font-mono text-cyan-300 shadow-[0_0_30px_rgba(0,240,255,0.15)]"
+  },
+  "page_structure": [
+    {
+      "section": "Sticky Header Navigation",
+      "elements": ["Brand Logo (Nexus Pass)", "Event Quick Stats Pill", "Nav Links (About, Schedule, RSVP, Admin Config)", "CTA Button: Register Now"]
+    },
+    {
+      "section": "Event Hero",
+      "elements": ["Event Tag & Category Badge", "Main Title & Short Description", "Date, Time & Venue Cards", "Live Ticket Countdown", "Primary CTA (RSVP) & Ticket Price Tag"]
+    },
+    {
+      "section": "Interactive Registration Form & Payment Flow",
+      "elements": ["Attendee Info (Name, Email, Phone)", "Dynamic Custom Fields Render", "Payment Method Switcher (UPI QR Code, Bank Direct Transfer, Zelle/Venmo, Cash/Receipt Upload)", "Payment Reference ID Input", "Hexadecimal Pass Generator Engine (Generates e.g., #NX-9F4A-82E1)"]
+    },
+    {
+      "section": "Generated Hexadecimal Pass Modal / Card",
+      "elements": ["Unique Pass Code (#NX-XXXX-XXXX)", "QR Code Visualizer", "Attendee Pass Summary", "Save to Calendar button", "Simulated Email Dispatch Status", "Print / Download Badge Button"]
+    },
+    {
+      "section": "Self-Host & Integrations Admin Drawer",
+      "elements": ["Google Sheets Webhook URL Setup", "Google Calendar iCal Event Generator", "SMTP / Email Dispatch Preview", "Event Customization JSON Editor", "Export Self-Host Zip / HTML Package Button"]
+    }
+  ],
+  "image_urls": [
+    {
+      "category": "Hero Background Event",
+      "url": "https://images.unsplash.com/photo-1773385404894-104116c1ef31?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwxfHx0ZWNoJTIwY29uZmVyZW5jZSUyMGNvbmNlcnQlMjBldmVudCUyMHZlbnVlJTIwYXRtb3NwaGVyZSUyMG5lb24lMjBuaWdodCUyMHN0YWdlfGVufDB8fHx8MTc4OTI5NjQyOXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Neon stage crowd at flagship event venue"
+    },
+    {
+      "category": "Stage Atmosphere",
+      "url": "https://images.unsplash.com/photo-1735070516022-14d176a59466?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwyfHx0ZWNoJTIwY29uZmVyZW5jZSUyMGNvbmNlcnQlMjBldmVudCUyMHZlbnVlJTIwYXRtb3NwaGVyZSUyMG5lb24lMjBuaWdodCUyMHN0YWdlfGVufDB8fHx8MTc4OTI5NjQyOXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Event mainstage display"
+    }
+  ],
+  "testing": {
+    "data_testids": [
+      "event-header-nav",
+      "event-hero-title",
+      "event-hero-countdown",
+      "rsvp-form-container",
+      "field-full-name",
+      "field-email",
+      "payment-method-select",
+      "payment-reference-input",
+      "payment-qr-image",
+      "submit-registration-btn",
+      "hex-pass-display",
+      "hex-pass-code",
+      "download-badge-btn",
+      "google-sheets-status-badge",
+      "admin-config-toggle",
+      "export-zip-btn"
+    ]
+  },
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Ensure contrast meets APCA standard with high contrast text on dark backgrounds.",
+    "Do not center-align the entire app. Use left-aligned readable hierarchy for forms and details.",
+    "Always set explicit text color on hover and focus states.",
+    "Provide clear feedback during payment reference submission and pass code creation.",
+    "Add data-testid attributes on all key interactive elements."
+  ]
+}

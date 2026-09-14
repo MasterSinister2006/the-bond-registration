@@ -1,0 +1,81 @@
+{
+  "iteration": 1,
+  "summary": "8 backend tests passed, 5 browser checks passed. All 7 acceptance criteria exercised.",
+  "passed": 13,
+  "failed": 0,
+  "retest_needed": false,
+  "bugs": [],
+  "action_items": [],
+  "checks": [
+    {
+      "criterion": "Public event landing page shows The Bond Tote Bag Bedazzling Party details and ₹359 entry fee",
+      "name": "test_tscheck_event_config.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "GET /api/event 200 -> name=THE BOND, eyebrow contains 'Tote Bag Bedazzling', date_label '17 September 2026', time_label '5:30 PM', venue 'Sayaji Bagh', price_amount 359, payment_name 'Parshva Shah', payment_upi_id 'shah.parshva2007@oksbi'"
+    },
+    {
+      "criterion": "Public event landing page shows The Bond Tote Bag Bedazzling Party details and ₹359 entry fee",
+      "name": "event-landing-page-details",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Navigated to /; event-hero-title visible, event-price-badge contains '359', event-detail-date '17 Sep', event-detail-time '5:30 PM', event-detail-venue 'Vadodara'. No console errors."
+    },
+    {
+      "criterion": "Supplied payment details are used",
+      "name": "payment-panel-shows-fixed-details",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Registered tscheck-payment-*@example.com; payment-panel shows payment-qr-image visible, payment-recipient-name='Parshva Shah', payment-upi-id='shah.parshva2007@oksbi', upi-pay-button href contains 'am=359' and 'pa=shah.parshva2007%40oksbi'"
+    },
+    {
+      "criterion": "Attendee can submit required registration and payment proof",
+      "name": "test_tscheck_registration_proof_flow.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "POST /registrations 200 -> status=awaiting_payment; POST /registrations/{id}/proof (multipart PNG) 200 -> status=proof_submitted, payment_reference stored; GET /registrations/{id} 200 confirms proof_submitted. Negative: proof upload with text/plain -> 400."
+    },
+    {
+      "criterion": "Attendee can submit required registration and payment proof",
+      "name": "registration-submits-proof-under-review",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Filled required fields, submitted registration, uploaded PNG proof with UTR, proof-file-selected shown, submit-proof-btn clicked -> proof-pending-state visible with 'under review' text."
+    },
+    {
+      "criterion": "Organizer can approve a submitted payment",
+      "name": "test_tscheck_admin_approve_flow.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "GET /admin/registrations with wrong PIN -> 401. Created+proof-submitted booking; GET /admin/registrations with correct PIN lists it; POST /admin/registrations/{id}/approve -> 200 status=paid, approved_at set; second approve attempt -> 409 (no double-approval)."
+    },
+    {
+      "criterion": "Organizer can approve a submitted payment",
+      "name": "admin-approve-updates-booking",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "Registered+submitted proof via UI, logged into /admin with PIN bond-demo-2026, located the created row, clicked Approve payment, admin-confirmed-<id> badge appeared."
+    },
+    {
+      "criterion": "Approval produces invitation confirmation without a hexadecimal pass",
+      "name": "attendee-invitation-confirmation-no-hex-pass",
+      "lane": "browser",
+      "status": "passed",
+      "evidence": "After approval via admin API, attendee page polling shows booking-confirmed-display with title \"You're on the guest list.\"; no [data-testid*='pass-code'|'copy-pass'|'print-pass'] elements and no 24-char hex token rendered in the confirmation block."
+    },
+    {
+      "criterion": "Optional integrations degrade safely without secrets",
+      "name": "test_tscheck_integrations_mocked.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "New registration reports integration_statuses.email/google_sheets/google_calendar all starting with 'MOCKED'. After approval (no SMTP/Google env vars set), approval still returns 200 and statuses remain MOCKED for each unconfigured channel — no secrets exposed, no failure."
+    },
+    {
+      "criterion": "Reminder is configured for confirmed attendees",
+      "name": "test_tscheck_reminder_worker_config.py",
+      "lane": "backend",
+      "status": "passed",
+      "evidence": "lib/reminders.py contains subject 'See you tomorrow at The Bond', queries status=paid with reminder_sent_at unset, and _smtp_configured() returns False when SMTP_HOST/USERNAME/PASSWORD/MAIL_FROM are unset — confirming SMTP-gated, idempotent worker behavior documented in memory/spec.md."
+    }
+  ]
+}

@@ -55,3 +55,8 @@ export interface ApprovalResponse {
   registration: Registration;
   message: string;
 }
+export interface LoginResponse {
+  token: string;
+  email: string;
+  expires_in: number;
+}

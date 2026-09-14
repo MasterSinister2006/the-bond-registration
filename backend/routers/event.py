@@ -22,10 +22,11 @@ EVENT = EventConfig(
     currency="INR",
     payment_upi_id=os.environ.get("PAYMENT_UPI_ID", "shah.parshva2007@oksbi"),
     payment_name=os.environ.get("PAYMENT_NAME", "Parshva Shah"),
-    # Served from the frontend's own public/ folder (frontend/public/payment-qr.jpg) so
-    # the QR does not depend on a third-party asset host that may disappear later.
-    # Override with a full URL via PAYMENT_QR_URL if you'd rather host it elsewhere.
-    payment_qr_url=os.environ.get("PAYMENT_QR_URL", "/payment-qr.jpg"),
+    # Served from frontend/public/. Keep it same-origin: the page offers this file as a
+    # download, and a browser ignores the download attribute on a cross-origin URL.
+    # iOS does not hand upi:// links to payment apps, so for iPhone users this QR is the
+    # only way to pay — if it is ever blank, that whole audience is stuck.
+    payment_qr_url=os.environ.get("PAYMENT_QR_URL", "/payment-qr.jpeg"),
     included=[
         "Your own tote bag to customise",
         "Complimentary refreshing drink",

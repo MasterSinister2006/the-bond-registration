@@ -1,53 +1,217 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
-@import "@fontsource-variable/outfit";
-@import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/playfair-display";
+@import "@fontsource-variable/instrument-sans";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ──────────────────────────────────────────────────────────────
+   THE BOND — visual system
+
+   Palette is lifted from the branded invitation email in
+   backend/lib/integrations.py, so the website and the invitation an
+   attendee receives read as one piece of stationery: warm ivory paper,
+   cocoa ink, a single clay-rose accent.
+
+   Type: Playfair Display (display) + Instrument Sans (text). No mono —
+   small-caps sans carries metadata instead.
+
+   Scale is a 1.618 modular scale rounded to optical values.
+   ────────────────────────────────────────────────────────────── */
+
 @theme inline {
-  --font-heading: 'Outfit Variable', sans-serif;
-  --font-sans: 'Geist Variable', sans-serif;
-  --font-mono: 'JetBrains Mono Variable', monospace;
-  --color-background: #0a0d14;
-  --color-foreground: #f8fafc;
-  --color-card: #161c2e;
-  --color-card-foreground: #f8fafc;
-  --color-popover: #161c2e;
-  --color-popover-foreground: #f8fafc;
-  --color-primary: #00f0ff;
-  --color-primary-foreground: #071017;
-  --color-secondary: #111625;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #111625;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #00f0ff;
-  --color-accent-foreground: #071017;
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-input: rgba(255, 255, 255, 0.14);
-  --color-ring: #00f0ff;
-  --color-destructive: #fb7185;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
+  --font-heading: 'Playfair Display Variable', Georgia, 'Times New Roman', serif;
+  --font-sans: 'Instrument Sans Variable', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Instrument Sans Variable', system-ui, sans-serif;
+
+  --color-background: #f4efe9;
+  --color-foreground: #2e211c;
+  --color-card: #fbf7f2;
+  --color-card-foreground: #2e211c;
+  --color-popover: #fbf7f2;
+  --color-popover-foreground: #2e211c;
+  --color-primary: #2e211c;
+  --color-primary-foreground: #f7f3ee;
+  --color-secondary: #e9ded3;
+  --color-secondary-foreground: #45332c;
+  --color-muted: #e9ded3;
+  --color-muted-foreground: #7a6659;
+  --color-accent: #e9ded3;
+  --color-accent-foreground: #45332c;
+  --color-border: #dccfc2;
+  --color-input: #cdbcac;
+  --color-ring: #9a6b62;
+  --color-destructive: #9c3f36;
+
+  /* Editorial radii — nearly square. Nothing here is a pill. */
+  --radius-sm: 0.125rem;
+  --radius-md: 0.1875rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.3125rem;
 }
 
-:root { --radius: 0.75rem; }
+:root {
+  --radius: 0.1875rem;
+
+  /* Brand tones used directly in markup */
+  --paper: #f4efe9;
+  --paper-deep: #e9ded3;
+  --paper-card: #fbf7f2;
+  --ink: #2e211c;
+  --ink-soft: #7a6659;
+  --clay: #9a6b62;
+  --clay-deep: #7a4f47;
+  --rule: #dccfc2;
+
+  /* 1.618 modular scale */
+  --step--1: 0.78rem;
+  --step-0: 1rem;
+  --step-1: 1.3rem;
+  --step-2: 1.62rem;
+  --step-3: 2.62rem;
+  --step-4: 4.24rem;
+}
 
 @layer base {
-  * { @apply border-border outline-ring/50; }
-  html { @apply font-sans scroll-smooth; background: #0a0d14; }
-  body { @apply bg-background text-foreground; margin: 0; }
-  ::selection { background: rgba(0, 240, 255, 0.3); color: white; }
+  * { @apply border-border; }
+
+  html {
+    @apply font-sans scroll-smooth;
+    background: var(--paper);
+    /* Offset for the fixed masthead when jumping to #anchors */
+    scroll-padding-top: 5.5rem;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3 {
+    @apply font-heading;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    line-height: 1.06;
+  }
+
+  /* One focus treatment everywhere: a clay ring, always visible on keyboard. */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--clay);
+    outline-offset: 3px;
+    border-radius: 1px;
+  }
+
+  ::selection { background: rgba(154, 107, 98, 0.22); color: var(--ink); }
+}
+
+@layer components {
+  /* Small-caps metadata label. Used sparingly — section openers and field groups. */
+  .eyebrow {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  /* Editorial form field: a ruled line, not a boxed input. */
+  .field-line {
+    @apply w-full bg-transparent text-[1rem] text-[var(--ink)];
+    border: 0;
+    border-bottom: 1px solid var(--rule);
+    border-radius: 0;
+    padding: 0.5rem 0;
+    transition: border-color 180ms ease;
+  }
+  .field-line::placeholder { color: #a89685; }
+  .field-line:hover { border-bottom-color: #c6b5a5; }
+  .field-line:focus {
+    outline: none;
+    border-bottom-color: var(--clay);
+    border-bottom-width: 1px;
+  }
+  .field-line:focus-visible { outline: none; }
+
+  /* Native select stripped back to the same ruled line. */
+  .field-line-select {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-soft) 50%),
+                      linear-gradient(135deg, var(--ink-soft) 50%, transparent 50%);
+    background-position: calc(100% - 11px) 1.15em, calc(100% - 6px) 1.15em;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 1.5rem;
+  }
+
+  /* Link with an underline that draws in from the left. */
+  .link-rule {
+    position: relative;
+    text-decoration: none;
+  }
+  .link-rule::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .link-rule:hover::after { transform: scaleX(1); }
+
+  /* Primary action: solid ink, square-ish, quiet press feedback. */
+  .btn-ink {
+    @apply inline-flex items-center justify-center gap-2;
+    background: var(--ink);
+    color: #f7f3ee;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    padding: 0.9rem 1.5rem;
+    transition: background-color 200ms ease, transform 120ms ease;
+  }
+  .btn-ink:hover:not(:disabled) { background: #45332c; }
+  .btn-ink:active:not(:disabled) { transform: translateY(1px); }
+  .btn-ink:disabled { opacity: 0.42; cursor: not-allowed; }
+
+  /* Secondary action: outline only. */
+  .btn-outline-ink {
+    @apply inline-flex items-center justify-center gap-2;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    padding: 0.9rem 1.5rem;
+    transition: background-color 200ms ease, color 200ms ease, transform 120ms ease;
+  }
+  .btn-outline-ink:hover:not(:disabled) { background: var(--ink); color: #f7f3ee; }
+  .btn-outline-ink:active:not(:disabled) { transform: translateY(1px); }
+}
+
+/* Honour the system setting: keep transitions, drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media print {
   body { background: white; color: black; }
-  header, footer, section:not(#rsvp), #rsvp > div:first-child, #rsvp form, #rsvp .border-t { display: none !important; }
-  #rsvp { display: block; padding: 0; }
-  #rsvp > div:last-child { max-width: 100%; }
-  [data-testid="hex-pass-display"] { color: black; background: white; border: 2px solid black; box-shadow: none; }
+  header, footer, .no-print { display: none !important; }
 }

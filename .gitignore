@@ -1,6 +1,33 @@
+# ── Secrets — never commit ────────────────────────────────────────
 .env
+.env.*
+!.env.example
 backend/.env
 credentials/
 credentails/
-*.json
-!frontend/tsconfig*.json
+credentials_placeholder/
+*credentials*.json
+*service-account*.json
+*google-key*.json
+*token*.json
+
+# ── Dependencies and build output ─────────────────────────────────
+node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ── Editor / OS noise ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# NOTE: there is deliberately NO blanket "*.json" rule here.
+# A blanket *.json ignored frontend/package.json and package-lock.json, which is why
+# Vercel and Netlify failed with:
+#   ENOENT: no such file or directory, open '/vercel/path0/frontend/package.json'
+# The files existed locally but were never pushed. Secrets are excluded by the explicit
+# patterns above instead, so the package files stay tracked.
