@@ -22,11 +22,12 @@ EVENT = EventConfig(
     currency="INR",
     payment_upi_id=os.environ.get("PAYMENT_UPI_ID", "shah.parshva2007@oksbi"),
     payment_name=os.environ.get("PAYMENT_NAME", "Parshva Shah"),
-    # Served from frontend/public/. Keep it same-origin: the page offers this file as a
-    # download, and a browser ignores the download attribute on a cross-origin URL.
-    # iOS does not hand upi:// links to payment apps, so for iPhone users this QR is the
-    # only way to pay — if it is ever blank, that whole audience is stuck.
-    payment_qr_url=os.environ.get("PAYMENT_QR_URL", "/payment-qr.jpeg"),
+    # NO LONGER USED BY THE PAYMENT STEP. The QR is now generated in the frontend from the
+    # UPI payload and inlined into the bundle (frontend/src/components/PaymentQr.tsx),
+    # because serving it as a file from public/ failed in production: it 404'd on Vercel
+    # and iPhone users — who cannot follow a upi:// link at all — had no way to pay.
+    # Kept only so the API response shape does not change. Setting it changes nothing.
+    payment_qr_url=os.environ.get("PAYMENT_QR_URL", ""),
     included=[
         "Your own tote bag to customise",
         "Complimentary refreshing drink",

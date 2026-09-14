@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { apiGet, apiPost, apiPostForm, errorMessage } from "@/lib/api";
 import { ConfettiField, Sparkle, ToteIllustration } from "@/components/Artwork";
+import { PaymentQr, QR_PNG_DATA_URL } from "@/components/PaymentQr";
 import type { EventConfig, ProofSubmitted, Registration, RegistrationCreated } from "@/lib/types";
 import type { FormEvent, ReactNode } from "react";
 
@@ -634,24 +635,22 @@ export default function Home() {
                             </p>
 
                             {/* Route two — the QR. iPhones ignore upi:// links, so this is the way in
-                                for every iOS attendee, and for anyone paying from a laptop. */}
-                            {event.payment_qr_url && (
+                                for every iOS attendee, and for anyone paying from a laptop.
+                                Both the code and the download come from the bundle, never from a
+                                file in public/ that could go missing on deploy. */}
+                            {(
                               <div data-testid="payment-qr-block" className="mt-8 border-t border-[var(--rule)] pt-8">
                                 <p className="eyebrow">On iPhone, or paying from a laptop</p>
 
                                 <figure className="mt-5 flex flex-col items-center">
-                                  <img
+                                  <PaymentQr
                                     data-testid="payment-qr-image"
-                                    src={event.payment_qr_url}
-                                    alt={`UPI QR code to pay ${event.payment_name} at ${event.payment_upi_id}`}
-                                    width={220}
-                                    height={220}
                                     className="w-[220px] max-w-full border border-[var(--rule)] bg-white p-2"
                                   />
                                   <a
                                     data-testid="download-qr-button"
-                                    href={event.payment_qr_url}
-                                    download="the-bond-upi-qr.jpg"
+                                    href={QR_PNG_DATA_URL}
+                                    download="the-bond-upi-qr.png"
                                     className="btn-outline-ink mt-5 w-full sm:w-auto sm:min-w-[15rem]"
                                   >
                                     Save the QR code

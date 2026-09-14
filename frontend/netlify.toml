@@ -1,5 +1,14 @@
 [build]
   command = "npm install --include=dev && npm run build"
+  publish = "dist"
 
 [build.environment]
   NPM_FLAGS = "--include=dev"
+
+# Single page app: React Router owns the URLs, so every path that is not a real
+# file on disk must be answered with index.html. Without this, loading /admin
+# directly returns the host's own 404 instead of the app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
